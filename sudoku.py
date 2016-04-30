@@ -129,7 +129,11 @@ class Sudoku:
         out = ""
         for y in range(9):
             for x in range(9):
-                out += str(self.grid[x][y])
+                digit = self.grid[x][y]
+                if digit != 0:
+                    out += str(digit)
+                else:
+                    out += " "
                 out += ", "
             out = out[:-2] + ";\n"
         return out
@@ -239,7 +243,7 @@ class Sudoku:
         def box_y(i, j): return (i % 3) * 3 + j % 3
 
         def col_x(i, j): return i
-   
+
         def col_y(i, j): return j
 
         def row_x(i, j): return j
@@ -346,15 +350,15 @@ class Sudoku:
 if __name__ == "__main__":
     sudoku = Sudoku()
 
-    instr = " ,  ,  ,  ,  , 1,  , 3, 4;" + \
-            " ,  ,8 , 5, 3,  ,  ,6 ,  ;" + \
-            " ,  ,  , 8,  ,  , 5,  , 2;" + \
-            "7,  ,  ,  ,  ,  , 2,  ,  ;" + \
-            "2, 8,  , 9,  , 3,  , 5, 6;" + \
-            " ,  , 6,  ,  ,  ,  ,  , 9;" + \
-            "8,  , 5,  ,  , 6,  ,  ,  ;" + \
-            " , 9,  ,  , 1, 5, 3,  ,  ;" + \
-            "3, 2,  , 4,  ,  ,  ,  ,  ;"
+    instr = " ,  ,  ,  , 5, 3,  ,  ,  ;\n" + \
+            "1,  ,  , 6,  ,  ,  ,  , 8;\n" + \
+            " , 5,  ,  ,  , 1,  , 4,  ;\n" + \
+            "4,  ,  ,  , 9,  , 5, 3,  ;\n" + \
+            " ,  , 9, 7,  , 6, 8,  ,  ;\n" + \
+            " , 2, 7,  , 3,  ,  ,  , 6;\n" + \
+            " , 4,  , 1,  ,  ,  , 8,  ;\n" + \
+            "2,  ,  ,  ,  , 7,  ,  , 1;\n" + \
+            " ,  ,  , 3, 2,  ,  ,  ,  ;\n"
 
     sudoku.read_string(instr)
     sudoku.recursive_solve()

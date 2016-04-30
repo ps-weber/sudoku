@@ -215,7 +215,6 @@ class Sudoku:
                         self._possCColumns[x][n - 1] += 1
                         self._possCBoxes[x // 3][y // 3][n - 1] += 1
 
-
     def _fill_poss(self):
         """
         update the values in _poss
@@ -230,66 +229,68 @@ class Sudoku:
                 else:
                     self._poss[x][y].clear()
 
+    @staticmethod
+    def col_coords(i, j):
+        """:returns i and j transformed into column coordinates"""
+        return i, j
+
+    @staticmethod
+    def row_coords(i, j):
+        """:returns i and j transformed into row coordinates"""
+        return j, i
+
+    @staticmethod
+    def box_coords(i, j):
+        """:returns i and j transformed into box coordinates"""
+        return (i // 3) * 3 + j // 3, (i % 3) * 3 + j % 3
+
     def _hidden_twin(self):
         """
         try apply the hidden twin rule to rows, columns or boxes
         the rule itself if implemented in _hidden_twin_step
         :return: True if the rule was applied
         """
-        # what follows are the functions used on the offsets
-        # to iterate on columns, rows and boxes
-        def box_x(i, j): return (i // 3) * 3 + j // 3
-
-        def box_y(i, j): return (i % 3) * 3 + j % 3
-
-        def col_x(i, j): return i
-
-        def col_y(i, j): return j
-
-        def row_x(i, j): return j
-
-        def row_y(i, j): return i
-
         changed = False
         for i in range(9):
             for j in range(9):
-                if self._hidden_twin_step(col_x, col_y, i, j):
+                if self._hidden_twin_step(self.col_coords, i, j):
                     changed = True
-                if self._hidden_twin_step(row_x, row_y, i, j):
+                if self._hidden_twin_step(self.row_coords, i, j):
                     changed = True
-                if self._hidden_twin_step(box_x, box_y, i, j):
+                if self._hidden_twin_step(self.box_coords, i, j):
                     changed = True
         return changed
 
-    def _hidden_twin_step(self, xfunc, yfunc, i, j):
+    def _hidden_twin_step(self, coords, i, j):
         """
         Apply the Hidden Twin rule described at www.sudokudragon.com/sudokustrategy.htm.
         If there are 2 cells inside a container(row/column/box) witch have the same pair
         of possibilities, the to digits in the pair can not be anywhere else in the
         container.
-        :param xfunc: function that defines how the i and j parameters should be
-                      transformed to get the x coordinate. This parameter makes it
-                      possible to apply this function to rows, columns and boxes
-        :param yfunc: same as xfunc for the y coordinate
+        :param coords: function that defines how the i and j parameters should be
+                       transformed to get the x and y coordinate. This parameter makes it
+                       possible to apply this function to rows, columns and boxes
         :param i: first offset of the cell
         :param j: second offset of the cell
         :return: True if the rule was successfully applied
         """
         changed = False
-        x, y = xfunc(i, j), yfunc(i, j)
+        x, y = coords(i, j)
         # check if there is a pair at the given offset
         if len(self._poss[x][y]) == 2:
             # search for cell with the same pair
             for j2 in range(j + 1, 9):
-                if self._poss[x][y] == self._poss[xfunc(i, j2)][yfunc(i, j2)]:
+                x2, y2 = coords(i, j2)
+                if self._poss[x][y] == self._poss[x2][y2]:
                     # cell with same pair is cell (i, j2)
                     pair = self._poss[x][y]
                     # remove all occurrences of the paired digits in the sequence
                     # which are not the pairs themselves
                     for j3 in range(9):
                         if j3 != j and j3 != j2:
-                            if not self._poss[xfunc(i, j3)][yfunc(i, j3)].isdisjoint(pair):
-                                self._poss[xfunc(i, j3)][yfunc(i, j3)] -= pair
+                            x3, y3 = coords(i, j3)
+                            if not self._poss[x3][y3].isdisjoint(pair):
+                                self._poss[x3][y3] -= pair
                                 changed = True
                     break
         return changed
@@ -299,10 +300,6 @@ class Sudoku:
         Apply the Subgroup exclusion rule. (see www.sudokudragon.com/sudokustrategy.htm)
         Must be applied repeatedly since the possibility counts do not get updated inside
         the function.
-
-        Subgroups are 3-cell columns or rows inside boxes
-        Are the cells of  a subgroup the only place in a box where a digit can be,
-        then the digit CAN NOT be anywhere in the full row/column the subgroup is part of
         :return: True if the rule was successfully applied
         """
         changed = False
@@ -310,42 +307,48 @@ class Sudoku:
         for i in range(9):
             # for each box that crosses the row/column
             for boxIndex in range(3):
-                # ----- check columns intersecting with boxes -----
-                # poss_c[digit - 1] = count of possible cells for "digit"
-                #                      in the current subgroup
-                poss_c = [0]*9
-                # for each cell in the subgroup
-                for k in range(3):
-                    # sum up the count of possibilities for each digit in the subgroup
-                    for n in self._poss[i][3*boxIndex+k]:
-                        poss_c[n-1] += 1
-                    for digit, count in enumerate(poss_c, 1):
-                        # if all possibilities of a digit are in the subgroup, remove the
-                        # digit from the possibilities of the cells in the column and outside the box
-                        if count != 0 and count == self._possCBoxes[i//3][boxIndex][digit-1]:
-                            changed = False
-                            for y in range(9):
-                                if y//3 != boxIndex and digit in self._poss[i][y]:
-                                    changed = True
-                                    self._poss[i][y].remove(digit)
-
-                # ----- check for rows intersecting with boxes -----
-                # for each cell in the subgroup
-                poss_c = [0]*9
-                for k in range(3):
-                    # sum up the count of possibilities for each digit in the subgroup
-                    for n in self._poss[3*boxIndex+k][i]:
-                        poss_c[n-1] += 1
-                    for digit, count in enumerate(poss_c, 1):
-                        # if all possibilities of a digit are in the subgroup, remove the
-                        # digit from the possibilities of the cells in the row and outside the box
-                        if count != 0 and count == self._possCBoxes[boxIndex][i//3][digit-1]:
-                            changed = False
-                            for x in range(9):
-                                if x//3 != boxIndex and digit in self._poss[x][i]:
-                                    changed = True
-                                    self._poss[x][i].remove(digit)
+                if self._subgroup_exclusion_step(self.col_coords, i, boxIndex):
+                    changed = True
+                if self._subgroup_exclusion_step(self.row_coords, i, boxIndex):
+                    changed = True
         return changed
+
+    def _subgroup_exclusion_step(self, coords, i, box_index):
+        """
+        Apply the subgroup exclusion rule on a single subgroup
+        Subgroups are 3-cell columns or rows inside boxes
+        Are the cells of  a subgroup the only place in a box where a digit can be,
+        then the digit CAN NOT be anywhere in the full row/column the subgroup is part of
+        :param coords:      function that defines how the i and j parameters should be
+                            transformed to get the x and y coordinate. This parameter makes it
+                            possible to apply this function to rows, columns and boxes
+        :param i:           index of the row or column
+        :param box_index:    index of the box the row/column is crossing
+        :return:
+        """
+        changed = False
+        # poss_c[digit - 1] = count of possible cells for "digit"
+        #                     in the current subgroup
+        poss_c = [0]*9
+        # for each cell in the subgroup
+        for k in range(3):
+            # sum up the count of possibilities for each digit in cells of the subgroup
+            x, y = coords(i, 3 * box_index + k)
+            for n in self._poss[x][y]:
+                poss_c[n-1] += 1
+        for digit, count in enumerate(poss_c, 1):
+            # if all possibilities of a digit are in the subgroup, remove the
+            # digit from the possibilities of the cells in the column and outside the box
+            x, y = coords(i // 3, box_index)
+            if count != 0 and count == self._possCBoxes[x][y][digit-1]:
+                changed = False
+                for j in range(9):
+                    x2, y2 = coords(i, j)
+                    if j//3 != box_index and digit in self._poss[x2][y2]:
+                        changed = True
+                        self._poss[x2][y2].remove(digit)
+        return changed
+
 
 if __name__ == "__main__":
     sudoku = Sudoku()
